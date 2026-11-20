@@ -5,6 +5,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import Cabecalho from './src/components/Cabecalho';
 import Creditos from './src/components/Creditos';
 import Carregando from './src/components/Carregando';
+import Busca from './src/components/Busca';
 import ListaFilmes from './src/components/ListaFilmes';
 import backendClient from './src/utils/backendClient';
 
@@ -12,6 +13,10 @@ export default function App() {
   const [emAlta, setEmAlta] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
+  const [termo, setTermo] = useState('');
+  const [termoBuscado, setTermoBuscado] = useState('');
+  const [resultados, setResultados] = useState(null);
+  const [mensagemCarregando, setMensagemCarregando] = useState('Buscando os filmes em alta...');
 
   useEffect(() => {
     backendClient
@@ -27,20 +32,60 @@ export default function App() {
       });
   }, []);
 
+  function buscar() {
+    const termoPesquisado = termo;
+    setMensagemCarregando('Procurando filmes...');
+    setCarregando(true);
+    backendClient
+      .get('/filmes', { params: { busca: termoPesquisado } })
+      .then((resposta) => {
+        setResultados(resposta.data);
+        setTermoBuscado(termoPesquisado);
+        setErro(null);
+        setCarregando(false);
+      })
+      .catch((falha) => {
+        setErro(falha.response?.data?.mensagem || 'Não foi possível buscar os filmes.');
+        setCarregando(false);
+      });
+  }
+
+  function limpar() {
+    setTermo('');
+    setResultados(null);
+    setErro(null);
+  }
+
   function renderizarConteudo() {
     if (carregando) {
-      return <Carregando mensagem="Buscando os filmes em alta..." />;
+      return <Carregando mensagem={mensagemCarregando} />;
     }
     if (erro) {
-      return <Text style={styles.erro}>{erro}</Text>;
+      return <Text style={styles.mensagem}>{erro}</Text>;
     }
-    return <ListaFilmes titulo="Em alta nesta semana" filmes={emAlta} />;
+    if (resultados === null) {
+      return <ListaFilmes titulo="Em alta nesta semana" filmes={emAlta} />;
+    }
+    if (resultados.length === 0) {
+      return (
+        <Text style={styles.mensagem}>
+          Nenhum filme encontrado para “{termoBuscado}”.
+        </Text>
+      );
+    }
+    return <ListaFilmes titulo={`Resultados para “${termoBuscado}”`} filmes={resultados} />;
   }
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
         <Cabecalho />
+        <Busca
+          termo={termo}
+          onTermoAlterado={setTermo}
+          onBuscar={buscar}
+          onLimpar={limpar}
+        />
         <View style={styles.conteudo}>{renderizarConteudo()}</View>
         <Creditos />
         <StatusBar style="light" />
@@ -57,8 +102,8 @@ const styles = StyleSheet.create({
   conteudo: {
     flex: 1,
   },
-  erro: {
-    color: '#ff6b6b',
+  mensagem: {
+    color: '#c8c8d4',
     fontSize: 15,
     textAlign: 'center',
     paddingHorizontal: 16,
