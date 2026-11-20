@@ -17,8 +17,8 @@ export default function App() {
   const [termo, setTermo] = useState('');
   const [termoBuscado, setTermoBuscado] = useState('');
   const [resultados, setResultados] = useState(null);
-  const [mensagemCarregando, setMensagemCarregando] = useState('Buscando os filmes em alta...');
   const [filmeSelecionado, setFilmeSelecionado] = useState(null);
+  const [buscando, setBuscando] = useState(false);
 
   useEffect(() => {
     backendClient
@@ -34,33 +34,57 @@ export default function App() {
       });
   }, []);
 
-  function buscar() {
-    const termoPesquisado = termo;
-    setMensagemCarregando('Procurando filmes...');
-    setCarregando(true);
-    backendClient
-      .get('/filmes', { params: { busca: termoPesquisado } })
-      .then((resposta) => {
-        setResultados(resposta.data);
-        setTermoBuscado(termoPesquisado);
-        setErro(null);
-        setCarregando(false);
-      })
-      .catch((falha) => {
-        setErro(falha.response?.data?.mensagem || 'Não foi possível buscar os filmes.');
-        setCarregando(false);
-      });
-  }
+  useEffect(() => {
+    const termoPesquisado = termo.trim();
+
+    if (termoPesquisado === '') {
+      setResultados(null);
+      setErro(null);
+      return;
+    }
+
+    if (termoPesquisado.length < 3) {
+      return;
+    }
+
+    let ativa = true;
+
+    const agendamento = setTimeout(() => {
+      setBuscando(true);
+      backendClient
+        .get('/filmes', { params: { busca: termoPesquisado } })
+        .then((resposta) => {
+          if (!ativa) {
+            return;
+          }
+          setResultados(resposta.data);
+          setTermoBuscado(termoPesquisado);
+          setErro(null);
+          setBuscando(false);
+        })
+        .catch((falha) => {
+          if (!ativa) {
+            return;
+          }
+          setErro(falha.response?.data?.mensagem || 'Não foi possível buscar os filmes.');
+          setBuscando(false);
+        });
+    }, 600);
+
+    return () => {
+      ativa = false;
+      clearTimeout(agendamento);
+      setBuscando(false);
+    };
+  }, [termo]);
 
   function limpar() {
     setTermo('');
-    setResultados(null);
-    setErro(null);
   }
 
   function renderizarConteudo() {
     if (carregando) {
-      return <Carregando mensagem={mensagemCarregando} />;
+      return <Carregando mensagem="Buscando os filmes em alta..." />;
     }
     if (erro) {
       return <Text style={styles.mensagem}>{erro}</Text>;
@@ -99,8 +123,8 @@ export default function App() {
             <Busca
               termo={termo}
               onTermoAlterado={setTermo}
-              onBuscar={buscar}
               onLimpar={limpar}
+              buscando={buscando}
             />
             {renderizarConteudo()}
           </View>
