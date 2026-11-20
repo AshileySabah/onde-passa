@@ -7,6 +7,7 @@ import Creditos from './src/components/Creditos';
 import Carregando from './src/components/Carregando';
 import Busca from './src/components/Busca';
 import ListaFilmes from './src/components/ListaFilmes';
+import DetalhesFilme from './src/components/DetalhesFilme';
 import backendClient from './src/utils/backendClient';
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
   const [termoBuscado, setTermoBuscado] = useState('');
   const [resultados, setResultados] = useState(null);
   const [mensagemCarregando, setMensagemCarregando] = useState('Buscando os filmes em alta...');
+  const [filmeSelecionado, setFilmeSelecionado] = useState(null);
 
   useEffect(() => {
     backendClient
@@ -64,7 +66,13 @@ export default function App() {
       return <Text style={styles.mensagem}>{erro}</Text>;
     }
     if (resultados === null) {
-      return <ListaFilmes titulo="Em alta nesta semana" filmes={emAlta} />;
+      return (
+        <ListaFilmes
+          titulo="Em alta nesta semana"
+          filmes={emAlta}
+          onSelecionar={setFilmeSelecionado}
+        />
+      );
     }
     if (resultados.length === 0) {
       return (
@@ -73,20 +81,32 @@ export default function App() {
         </Text>
       );
     }
-    return <ListaFilmes titulo={`Resultados para “${termoBuscado}”`} filmes={resultados} />;
+    return (
+      <ListaFilmes
+        titulo={`Resultados para “${termoBuscado}”`}
+        filmes={resultados}
+        onSelecionar={setFilmeSelecionado}
+      />
+    );
   }
 
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
         <Cabecalho />
-        <Busca
-          termo={termo}
-          onTermoAlterado={setTermo}
-          onBuscar={buscar}
-          onLimpar={limpar}
-        />
-        <View style={styles.conteudo}>{renderizarConteudo()}</View>
+        {filmeSelecionado === null ? (
+          <View style={styles.conteudo}>
+            <Busca
+              termo={termo}
+              onTermoAlterado={setTermo}
+              onBuscar={buscar}
+              onLimpar={limpar}
+            />
+            {renderizarConteudo()}
+          </View>
+        ) : (
+          <DetalhesFilme id={filmeSelecionado} onVoltar={() => setFilmeSelecionado(null)} />
+        )}
         <Creditos />
         <StatusBar style="light" />
       </SafeAreaView>
